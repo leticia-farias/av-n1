@@ -5,4 +5,5 @@
     <string name="btn_stop_txt">Stop</string>
     <string name="btn_start_txt">Start</string>
     <string name="localizacao_txt">Localização não Disponível</string>
+    <string name="btn_gnss_plot_txt">GNSS Plot</string>
 </resources>
