@@ -25,5 +25,13 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(i);
             }
         });
+        Button buttonGNSS = (Button) findViewById(R.id.buttonGnss);
+        buttonGNSS.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Intent i = new Intent(MainActivity.this, GNSSActivity.class);
+                startActivity(i);
+            }
+        });
     }
 }
