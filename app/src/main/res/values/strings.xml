@@ -6,4 +6,5 @@
     <string name="btn_start_txt">Start</string>
     <string name="localizacao_txt">Localização não Disponível</string>
     <string name="btn_gnss_plot_txt">GNSS Plot</string>
+    <string name="info_satelites_txt">Informações do Sistema de Satélites não Disponíveis</string>
 </resources>

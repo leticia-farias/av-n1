@@ -1,5 +1,6 @@
 package com.example.localizao;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.location.GnssStatus;
@@ -68,9 +69,9 @@ public class GNSSActivity extends AppCompatActivity {
                 @Override
                 public void onStatusChanged(String provider, int status, Bundle extras) {}
                 @Override
-                public void onProviderEnabled(String provider) {}
+                public void onProviderEnabled(@NonNull String provider) {}
                 @Override
-                public void onProviderDisabled(String provider) {}
+                public void onProviderDisabled(@NonNull String provider) {}
             };
             // Informa o provedor de localização, tempo e distância mínimos e o escutador
             locationManager.requestLocationUpdates(
@@ -79,6 +80,7 @@ public class GNSSActivity extends AppCompatActivity {
                     0, // distância mínima (m)
                     locationListener); // objeto que irá processar as localizações
 
+            // Objeto instância de uma classe anônima que implementa GnssStatus.Callback
             gnssCallback = new GnssStatus.Callback() {
                 @Override
                 public void onSatelliteStatusChanged(@NonNull GnssStatus status) {
@@ -94,12 +96,13 @@ public class GNSSActivity extends AppCompatActivity {
         } else {
             // Solicite a permissão
             ActivityCompat.requestPermissions(this,
-                new String[]{android.Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION_UPDATES);
+                new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                    REQUEST_LOCATION_UPDATES);
         }
     }
 
     @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == REQUEST_LOCATION_UPDATES) {
             if (grantResults.length == 1 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
@@ -115,22 +118,22 @@ public class GNSSActivity extends AppCompatActivity {
     }
 
     private void atualizaLocationTextView(Location location) {
-        TextView locationGnssTextView = (TextView) findViewById(R.id.textViewLocationManager);
+        TextView locationTextView = (TextView) findViewById(R.id.textViewLocationManager);
         if (location == null) {
             String s = "Dados de Localização não disponíveis";
-            locationGnssTextView.setText(s);
+            locationTextView.setText(s);
             return;
         }
-        String s = "Dados do Sistema GNSS:\n";
+        String s = "Dados da Última Localização:\n";
         if (location != null) {
-            s += "Latitude: (G/M/S)" + location.getLatitude() + "\n";
-            s += "Longitude: (G/M/S) " + location.getLongitude() + "\n";
+            s += "Latitude: " + location.getLatitude() + "\n";
+            s += "Longitude: " + location.getLongitude() + "\n";
             s += "Altitude: " + location.getAltitude() + "\n";
             s += "Rumo: (radianos)" + location.getBearing() + "\n";
             s += "Velocidade (m/s): " + location.getSpeed() + "\n";
             s += "Precisão: (m)" + location.getAccuracy() + "\n";
         }
-        locationGnssTextView.setText(s);
+        locationTextView.setText(s);
     }
 
     private void atualizaGNSSTextView(GnssStatus status) {
@@ -149,9 +152,9 @@ public class GNSSActivity extends AppCompatActivity {
             float elevation = status.getElevationDegrees(i); // Elevação (0º = Horizonte, 90º = Zênite)
             boolean used = status.usedInFix(i);
             sb.append("SVID: ").append(svid)
-                    .append("| Azimute: ").append(azimuth).append("º")
-                    .append("| Elevação: ").append(elevation).append("º")
-                    .append("| Usado no fix:: ").append(used)
+                    .append(" | Azimute: ").append(azimuth).append("º")
+                    .append(" | Elevação: ").append(elevation).append("º")
+                    .append(" | Usado no fix: ").append(used)
                     .append("\n");
         }
         textViewGNSS.setText(sb.toString());

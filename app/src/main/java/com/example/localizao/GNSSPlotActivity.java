@@ -11,8 +11,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.widget.Toast;
-import android.view.View;
-import android.widget.Button;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -30,8 +28,10 @@ public class GNSSPlotActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_gnssplot);
 
+        // Obtém o Location Manager
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
+        // Referência para o controle customizado
         gnssView = findViewById(R.id.GNSSViewid);
 
         startGnssUpdate();

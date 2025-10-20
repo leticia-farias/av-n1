@@ -20,7 +20,8 @@ import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.Priority;
 
 public class LocationActivity extends AppCompatActivity {
-    private static final int REQUEST_LOCATION_UPDATES = 1;
+    private static final int REQUEST_LOCATION_UPDATES = 1; // Request code para o gerenciamento de permissões
+    // Objetos da API de Localização
     private FusedLocationProviderClient fusedLocationProviderClient;
     private LocationRequest locationRequest;
     private LocationCallback locationCallback;
@@ -47,12 +48,13 @@ public class LocationActivity extends AppCompatActivity {
             }
         });
     }
-    public void startLocationUpdate() {
+    private void startLocationUpdate() {
         // Se a app já possui a permissão, ativa a chamada de localização
         if (ActivityCompat.checkSelfPermission(this,
                 Manifest.permission.ACCESS_FINE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED) {
             // A permissão foi dada– OK vá em frente
+
             // Cria o cliente (FusedLocationProviderClient)
             fusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(this);
 
@@ -82,7 +84,7 @@ public class LocationActivity extends AppCompatActivity {
         }
     }
 
-    public void stopLocationUpdate() {
+    private void stopLocationUpdate() {
         if (fusedLocationProviderClient != null)
             fusedLocationProviderClient.removeLocationUpdates(locationCallback);
         atualizaLocationTextView(null);
@@ -106,14 +108,12 @@ public class LocationActivity extends AppCompatActivity {
         }
     }
 
-    public void atualizaLocationTextView(Location location) {
+    public void atualizaLocationTextView (Location location) {
         TextView locationTextView = (TextView) findViewById(R.id.LocationTextView);
         String s = "Dados da Última Localização:\n";
         if (location != null) {
-            s += "Latitude: (G/M/S)" +
-                    Location.convert(location.getLatitude(), Location.FORMAT_SECONDS) + "\n";
-            s += "Longitude: (G/M/S) " +
-                    Location.convert(location.getLongitude(), Location.FORMAT_SECONDS) + "\n";
+            s += "Latitude: (G/M/S)" + Location.convert(location.getLatitude(),Location.FORMAT_SECONDS) + "\n";
+            s += "Longitude: (G/M/S) " + Location.convert(location.getLongitude(),Location.FORMAT_SECONDS) + "\n";
             s += "Altitude: " + location.getAltitude() + "\n";
             s += "Rumo: (radianos)" + location.getBearing() + "\n";
             s += "Velocidade (m/s): " + location.getSpeed() + "\n";
