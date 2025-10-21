@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="GNSSView">
+        <attr name="zenithMarkerStyle" format="enum">
+            <enum name="dot" value="0"/>       <enum name="cross" value="1"/>     <enum name="circle" value="2"/>    </attr>
+    </declare-styleable>
+</resources>
