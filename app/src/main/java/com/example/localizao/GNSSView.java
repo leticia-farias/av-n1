@@ -8,8 +8,9 @@ import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.RectF; // Import necessário para o desenho do Zênite
+import android.graphics.Path; // Necessário para desenhar a estrela
 import android.location.GnssStatus;
+import android.location.Location; // Necessário para obter a precisão do Fix
 import android.util.AttributeSet;
 import android.view.View;
 import android.widget.CheckBox;
@@ -18,20 +19,26 @@ import android.preference.PreferenceManager;
 
 import androidx.annotation.Nullable;
 
+/**
+ * Componente customizado para desenhar a projeção da esfera celeste e satélites GNSS.
+ * Implementa filtros de constelação e um marcador de Zênite customizável.
+ */
 public class GNSSView extends View implements View.OnClickListener {
     // Variáveis do Desenho
-    private GnssStatus gnssStatus = null; // Satélites do sistema GNSS
+    private GnssStatus gnssStatus = null;
+    private Location lastLocation = null; // Última localização para obter a precisão (accuracy)
     private int r; // Raio da esfera celeste (projeção do horizonte)
-    private int height, width; // altura e largura do componente
-    private Paint paint = new Paint(); // Pincel para o desenho
+    private int height, width;
+    private Paint paint = new Paint(); // Pincel de uso geral
 
-    // Constantes do Atributo Customizado
-    private static final int ZENITH_DOT = 0;
+    // Constantes do Atributo Customizado e Estado
+    private static final int ZENITH_CIRCLE = 0;
     private static final int ZENITH_CROSS = 1;
-    private static final int ZENITH_CIRCLE = 2;
-    private int zenithStyle = ZENITH_DOT; // Estilo padrão
+    private static final int ZENITH_STAR = 2;
+    private int zenithStyle = ZENITH_CIRCLE;
 
-    // Constantes e Variáveis para SharedPreferences e Configurações
+    // Constantes e Variáveis para Configurações (SharedPreferences)
+    private SharedPreferences sharedPrefs;
     public static final String PREF_GPS = "pref_gps";
     public static final String PREF_GLONASS = "pref_glonass";
     public static final String PREF_GALILEO = "pref_galileo";
@@ -44,29 +51,27 @@ public class GNSSView extends View implements View.OnClickListener {
     private boolean showBEIDOU = true;
     private boolean showUnused = true;
 
-    private SharedPreferences sharedPrefs;
-
     public GNSSView(Context context, @Nullable AttributeSet attrs) {
         super(context, attrs);
 
-        // --- 1. Leitura do Atributo Customizado via XML  ---
+        // --- 1. Leitura do Atributo Customizado via XML (zenithMarkerStyle) ---
         TypedArray a = context.getTheme().obtainStyledAttributes(
                 attrs,
                 R.styleable.GNSSView,
                 0, 0);
 
         try {
-            // Obtém o valor do atributo 'zenithMarkerStyle'. O valor padrão é ZENITH_DOT (0).
-            zenithStyle = a.getInt(R.styleable.GNSSView_zenithMarkerStyle, ZENITH_DOT);
+            // O nome do styleable no XML é GNSSView, os valores são 0, 1, 2
+            zenithStyle = a.getInt(R.styleable.GNSSView_zenithMarkerStyle, ZENITH_CIRCLE);
         } finally {
             a.recycle();
         }
 
-        // --- 2. Configuração de Persistência  ---
+        // --- 2. Configuração de Persistência ---
         sharedPrefs = PreferenceManager.getDefaultSharedPreferences(context);
         loadConfiguration();
 
-        // --- 3. Configura o componente para responder a cliques  ---
+        // --- 3. Configura o componente para responder a cliques (para o diálogo) ---
         this.setOnClickListener(this);
     }
 
@@ -75,15 +80,29 @@ public class GNSSView extends View implements View.OnClickListener {
         super.onSizeChanged(w, h, oldw, oldh);
         width = w;
         height = h;
-
-        // Raio da esfera (usando um fator de 0.9 do menor lado)
+        // Raio da esfera (0.9 do menor lado)
         if (width < height)
             r = (int) (width / 2 * 0.9);
         else
             r = (int) (height / 2 * 0.9);
     }
 
-    // --- Métodos de Persistência e Configuração ---
+    // --- Métodos de Atualização de Dados ---
+    public void newStatus(GnssStatus gnssStatus) {
+        this.gnssStatus = gnssStatus;
+        invalidate(); // Redesenha a tela
+    }
+
+    public void newLocation(Location location) {
+        this.lastLocation = location;
+        invalidate(); // Redesenha a tela
+    }
+
+    // --- Métodos Auxiliares de Coordenadas ---
+    private int computeXc(double x) { return (int) (x + width / 2); }
+    private int computeYc(double y) { return (int) (-y + height / 2); }
+
+    // --- Lógica de Persistência e Configuração ---
     private void loadConfiguration() {
         showGPS = sharedPrefs.getBoolean(PREF_GPS, true);
         showGLONASS = sharedPrefs.getBoolean(PREF_GLONASS, true);
@@ -107,38 +126,20 @@ public class GNSSView extends View implements View.OnClickListener {
         editor.putBoolean(PREF_SHOW_UNUSED, showUnusedSatellites);
 
         editor.apply();
-
-        invalidate(); // Força o redesenho [cite: 5]
-    }
-
-    // Método chamado pelo GNSSPlotActivity para atualizar os dados [cite: 5]
-    public void newStatus(GnssStatus gnssStatus) {
-        this.gnssStatus = gnssStatus;
         invalidate();
     }
 
-    private int computeXc(double x) {
-        return (int) (x+width/2);
-    }
-
-    private int computeYc(double y) {
-        // Zênite (0,0) deve estar no centro e o Norte (azimute 0) para cima [cite: 4]
-        return (int) (-y+height/2);
-    }
-
-    // --- Lógica do Quadro de Diálogo  ---
+    // --- Lógica do Quadro de Diálogo ---
     @Override
     public void onClick(View v) {
         showConfigurationDialog();
     }
 
     private void showConfigurationDialog() {
-        // Layout principal do diálogo (vertical)
         LinearLayout layout = new LinearLayout(getContext());
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(50, 50, 50, 50);
 
-        // CheckBoxes para as constelações
         final CheckBox gpsCb = new CheckBox(getContext());
         gpsCb.setText("GPS");
         gpsCb.setChecked(showGPS);
@@ -155,7 +156,6 @@ public class GNSSView extends View implements View.OnClickListener {
         beidouCb.setText("BEIDOU");
         beidouCb.setChecked(showBEIDOU);
 
-        // CheckBox para satélites não usados no FIX
         final CheckBox unusedCb = new CheckBox(getContext());
         unusedCb.setText("Mostrar satélites não usados no FIX");
         unusedCb.setChecked(showUnused);
@@ -166,82 +166,109 @@ public class GNSSView extends View implements View.OnClickListener {
         layout.addView(beidouCb);
         layout.addView(unusedCb);
 
-        // Cria e exibe o diálogo
         new AlertDialog.Builder(getContext())
                 .setTitle("Configuração de Visualização GNSS")
                 .setView(layout)
-                .setPositiveButton("Salvar", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialog, int which) {
-                        // Salva as novas configurações
-                        saveConfiguration(
-                                gpsCb.isChecked(),
-                                glonassCb.isChecked(),
-                                galileoCb.isChecked(),
-                                beidouCb.isChecked(),
-                                unusedCb.isChecked()
-                        );
-                    }
-                })
+                .setPositiveButton("Salvar", (dialog, which) -> saveConfiguration(
+                        gpsCb.isChecked(),
+                        glonassCb.isChecked(),
+                        galileoCb.isChecked(),
+                        beidouCb.isChecked(),
+                        unusedCb.isChecked()
+                ))
                 .setNegativeButton("Cancelar", null)
                 .show();
     }
 
-    // --- Lógica de Desenho Principal (onDraw)  ---
+    // --- Lógica de Desenho Principal (onDraw) ---
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
         int visibleCount = 0;
         int usedCount = 0;
-        int centerX = computeXc(0);
-        int centerY = computeYc(0);
+        int cx = computeXc(0);
+        int cy = computeYc(0);
 
-        // --- 1. Desenho da Esfera Celeste e Eixos [cite: 4] ---
+        // --- 1. Desenho da Esfera Celeste e Eixos ---
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(5);
         paint.setColor(Color.BLUE);
 
         // Círculos de Elevação (Horizonte, 30°, 60°)
-        canvas.drawCircle(centerX, centerY, r, paint); // 0º Elevação (Horizonte)
-        canvas.drawCircle(centerX, centerY, r * 2 / 3, paint); // 30º Elevação
-        canvas.drawCircle(centerX, centerY, r * 1 / 3, paint); // 60º Elevação
+        canvas.drawCircle(cx, cy, r, paint); // 0º Elevação (Horizonte)
+        canvas.drawCircle(cx, cy, r * 2 / 3, paint); // 30º Elevação
+        canvas.drawCircle(cx, cy, r * 1 / 3, paint); // 60º Elevação
 
-        // Eixos (Norte, Sul, Leste, Oeste)
-        canvas.drawLine(centerX, centerY - r, centerX, centerY + r, paint); // N-S
-        canvas.drawLine(centerX - r, centerY, centerX + r, centerY, paint); // L-O
+        // Eixos e marcações N, S, L, O
+        canvas.drawLine(cx, cy - r, cx, cy + r, paint);
+        canvas.drawLine(cx - r, cy, cx + r, cy, paint);
 
-        // Desenha as marcações N, S, L, O (Texto)
         paint.setStyle(Paint.Style.FILL);
         paint.setTextSize(30);
         paint.setColor(Color.WHITE);
 
-        canvas.drawText("N", centerX, centerY - r - 10, paint);
-        canvas.drawText("S", centerX, centerY + r + 40, paint);
-        canvas.drawText("L", centerX + r + 10, centerY + 10, paint);
-        canvas.drawText("O", centerX - r - 40, centerY + 10, paint);
+        canvas.drawText("N", cx, cy - r - 10, paint);
+        canvas.drawText("S", cx, cy + r + 40, paint);
+        canvas.drawText("L", cx + r + 10, cy + 10, paint);
+        canvas.drawText("O", cx - r - 40, cy + 10, paint);
 
-        // Desenho do Marcador de Zênite (Centro)
-        paint.setColor(Color.RED);
-        int markerSize = 15;
+        // --- Desenho do Marcador de Zênite (Centro) com Precisão do Fix ---
 
-        if (zenithStyle == ZENITH_DOT) {
-            canvas.drawCircle(centerX, centerY, markerSize, paint);
-        } else if (zenithStyle == ZENITH_CROSS) {
-            paint.setStrokeWidth(8);
-            canvas.drawLine(centerX - markerSize, centerY - markerSize, centerX + markerSize, centerY + markerSize, paint);
-            canvas.drawLine(centerX - markerSize, centerY + markerSize, centerX + markerSize, centerY - markerSize, paint);
-            paint.setStrokeWidth(5); // Restaura o stroke width
-        } else if (zenithStyle == ZENITH_CIRCLE) {
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(8);
-            canvas.drawCircle(centerX, centerY, markerSize, paint);
-            paint.setStrokeWidth(5); // Restaura o stroke width
+        // 1. Determina a cor do marcador com base na precisão da última localização
+        if (lastLocation != null && lastLocation.hasAccuracy()) {
+            float accuracy = lastLocation.getAccuracy();
+            if (accuracy < 5) { // Boa precisão (menos de 5m)
+                paint.setColor(Color.GREEN);
+            } else if (accuracy < 20) { // Precisão média (entre 5m e 20m)
+                paint.setColor(Color.YELLOW);
+            } else { // Baixa precisão (mais de 20m)
+                paint.setColor(Color.RED);
+            }
+        } else {
+            // Sem dados de precisão, usa cinza
+            paint.setColor(Color.DKGRAY);
         }
 
-        paint.setStyle(Paint.Style.FILL);
+        // 2. Desenha o estilo do marcador
+        int markerSize = 15;
 
+        // Salva o pincel antes de modificar o stroke/style
+        Paint usedPaint = new Paint(paint);
 
-        // --- 2. Desenho e Filtragem dos Satélites [cite: 6, 7, 8] ---
+        switch (zenithStyle) {
+            case ZENITH_CIRCLE: // circle
+                usedPaint.setStyle(Paint.Style.FILL);
+                canvas.drawCircle(cx, cy, 10, usedPaint);
+                break;
+            case ZENITH_CROSS: // cross
+                usedPaint.setStrokeWidth(8);
+                canvas.drawLine(cx - 10, cy, cx + 10, cy, usedPaint);
+                canvas.drawLine(cx, cy - 10, cx, cy + 10, usedPaint);
+                break;
+            case ZENITH_STAR: // star
+                // Lógica complexa para desenhar uma estrela (pentagrama)
+                usedPaint.setStyle(Paint.Style.FILL);
+                Path star = new Path();
+                for (int i = 0; i < 5; i++) {
+                    // Ângulo para os pontos externos e internos da estrela de 5 pontas
+                    double angle = Math.toRadians(i * 72 - 90);
+                    double inner = Math.toRadians(i * 72 + 36 - 90);
+
+                    float xOuter = (float) (cx + 12 * Math.cos(angle));
+                    float yOuter = (float) (cy + 12 * Math.sin(angle));
+                    float xInner = (float) (cx + 5 * Math.cos(inner));
+                    float yInner = (float) (cy + 5 * Math.sin(inner));
+
+                    if (i == 0) star.moveTo(xOuter, yOuter);
+                    star.lineTo(xInner, yInner);
+                    star.lineTo(xOuter, yOuter);
+                }
+                star.close();
+                canvas.drawPath(star, usedPaint);
+                break;
+        }
+
+        // --- 3. Desenho e Filtragem dos Satélites ---
         if (gnssStatus != null) {
             int count = gnssStatus.getSatelliteCount();
 
@@ -249,24 +276,17 @@ public class GNSSView extends View implements View.OnClickListener {
                 int constellation = gnssStatus.getConstellationType(i);
                 boolean usedInFix = gnssStatus.usedInFix(i);
 
-                // --- Lógica de Filtragem ---
-                boolean passesConstellationFilter = false;
-                if (constellation == GnssStatus.CONSTELLATION_GPS && showGPS) {
-                    passesConstellationFilter = true;
-                } else if (constellation == GnssStatus.CONSTELLATION_GLONASS && showGLONASS) {
-                    passesConstellationFilter = true;
-                } else if (constellation == GnssStatus.CONSTELLATION_GALILEO && showGALILEO) {
-                    passesConstellationFilter = true;
-                } else if (constellation == GnssStatus.CONSTELLATION_BEIDOU && showBEIDOU) {
-                    passesConstellationFilter = true;
-                } else if (constellation == GnssStatus.CONSTELLATION_QZSS || constellation == GnssStatus.CONSTELLATION_SBAS || constellation == GnssStatus.CONSTELLATION_UNKNOWN) {
-                    passesConstellationFilter = true;
-                }
+                // Aplica Filtros
+                boolean passesConstellationFilter = (constellation == GnssStatus.CONSTELLATION_GPS && showGPS) ||
+                        (constellation == GnssStatus.CONSTELLATION_GLONASS && showGLONASS) ||
+                        (constellation == GnssStatus.CONSTELLATION_GALILEO && showGALILEO) ||
+                        (constellation == GnssStatus.CONSTELLATION_BEIDOU && showBEIDOU) ||
+                        (constellation == GnssStatus.CONSTELLATION_QZSS || constellation == GnssStatus.CONSTELLATION_SBAS || constellation == GnssStatus.CONSTELLATION_UNKNOWN);
 
                 boolean passesUsedFilter = showUnused || usedInFix;
 
                 if (!passesConstellationFilter || !passesUsedFilter) {
-                    continue; // Pula o satélite se não passar nos filtros
+                    continue;
                 }
 
                 // Contagem
@@ -284,21 +304,13 @@ public class GNSSView extends View implements View.OnClickListener {
                 float x = (float) (rho * Math.sin(Math.toRadians(az)));
                 float y = (float) (rho * Math.cos(Math.toRadians(az)));
 
-                // --- Diferenciação Visual (Constelação e Fix) [cite: 6, 7, 8] ---
-
                 // 1. Cor pela Constelação
                 int satColor;
-                if (constellation == GnssStatus.CONSTELLATION_GPS) {
-                    satColor = Color.GREEN;
-                } else if (constellation == GnssStatus.CONSTELLATION_GLONASS) {
-                    satColor = Color.YELLOW;
-                } else if (constellation == GnssStatus.CONSTELLATION_GALILEO) {
-                    satColor = Color.CYAN;
-                } else if (constellation == GnssStatus.CONSTELLATION_BEIDOU) {
-                    satColor = Color.MAGENTA;
-                } else {
-                    satColor = Color.LTGRAY;
-                }
+                if (constellation == GnssStatus.CONSTELLATION_GPS) satColor = Color.parseColor("#013220");
+                else if (constellation == GnssStatus.CONSTELLATION_GLONASS) satColor = Color.YELLOW;
+                else if (constellation == GnssStatus.CONSTELLATION_GALILEO) satColor = Color.CYAN;
+                else if (constellation == GnssStatus.CONSTELLATION_BEIDOU) satColor = Color.MAGENTA;
+                else satColor = Color.LTGRAY;
                 paint.setColor(satColor);
 
                 // 2. Forma/Estilo pelo 'Used in Fix'
@@ -315,7 +327,7 @@ public class GNSSView extends View implements View.OnClickListener {
                     paint.setStyle(Paint.Style.FILL);
                 }
 
-                // 3. Desenha o ID do satélite (Texto) [cite: 6]
+                // 3. Desenha o ID do satélite (Texto)
                 paint.setColor(Color.WHITE);
                 paint.setTextAlign(Paint.Align.LEFT);
                 paint.setTextSize(25);
@@ -324,7 +336,7 @@ public class GNSSView extends View implements View.OnClickListener {
             }
         }
 
-        // --- 3. Desenho do Texto de Status (Contagens) [cite: 9] ---
+        // --- 4. Desenho do Texto de Status (Contagens) ---
         paint.setColor(Color.WHITE);
         paint.setTextSize(40);
         paint.setTextAlign(Paint.Align.LEFT);
@@ -332,7 +344,6 @@ public class GNSSView extends View implements View.OnClickListener {
         String statusText1 = "Satélites Visíveis: " + visibleCount;
         String statusText2 = "Satélites em Uso (Fix): " + usedCount;
 
-        // Desenha o texto de status no topo
         canvas.drawText(statusText1, 10, 50, paint);
         canvas.drawText(statusText2, 10, 100, paint);
     }

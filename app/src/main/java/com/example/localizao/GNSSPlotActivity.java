@@ -16,6 +16,10 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
+/**
+ * Atividade responsável por configurar e exibir o componente customizado GNSSView
+ * e fornecer dados de GNSS Status e Location para ele.
+ */
 public class GNSSPlotActivity extends AppCompatActivity {
     private static final int REQUEST_LOCATION_UPDATES = 1;
     private LocationManager locationManager;
@@ -31,7 +35,8 @@ public class GNSSPlotActivity extends AppCompatActivity {
         // Obtém o Location Manager
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
-        // Referência para o controle customizado
+        // Referência para o controle customizado (GNSSView)
+        // Este componente é o responsável por desenhar a esfera celeste e os satélites.
         gnssView = findViewById(R.id.GNSSViewid);
 
         startGnssUpdate();
@@ -40,32 +45,30 @@ public class GNSSPlotActivity extends AppCompatActivity {
     public void startGnssUpdate() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
 
+            // Escutador de Localização: Repassa a última localização para o GNSSView
             locationListener = new LocationListener() {
                 @Override
                 public void onLocationChanged(@NonNull Location location) {
-                    // Implementação para onLocationChanged, se necessário.
-                    // Para GNSSPlotActivity, o foco é o GNSSView, então pode estar vazio.
+                    // Repassa a localização para que o GNSSView possa usar a precisão (accuracy)
+                    gnssView.newLocation(location);
                 }
 
                 @Override
-                public void onStatusChanged(String provider, int status, Bundle extras) {
-                }
-
+                public void onStatusChanged(String provider, int status, Bundle extras) { }
                 @Override
-                public void onProviderEnabled(@NonNull String provider) {
-                }
-
+                public void onProviderEnabled(@NonNull String provider) { }
                 @Override
-                public void onProviderDisabled(@NonNull String provider) {
-                }
+                public void onProviderDisabled(@NonNull String provider) { }
             };
 
+            // Solicita atualizações de localização para obter o objeto Location (necessário para a precisão)
             locationManager.requestLocationUpdates(
                     LocationManager.GPS_PROVIDER,
-                    1000,
-                    0,
+                    1000, // 1 segundo
+                    0, // 0 metros
                     locationListener);
 
+            // Escutador de Status GNSS: Repassa o status dos satélites para o GNSSView
             gnssCallback = new GnssStatus.Callback() {
                 @Override
                 public void onSatelliteStatusChanged(@NonNull GnssStatus status) {
@@ -77,6 +80,7 @@ public class GNSSPlotActivity extends AppCompatActivity {
             locationManager.registerGnssStatusCallback(gnssCallback, new Handler(Looper.getMainLooper()));
 
         } else {
+            // Solicita a permissão se ainda não foi concedida
             ActivityCompat.requestPermissions(
                     this,
                     new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
@@ -104,9 +108,8 @@ public class GNSSPlotActivity extends AppCompatActivity {
         if (gnssCallback != null) {
             try {
                 locationManager.unregisterGnssStatusCallback(gnssCallback);
-            } catch (SecurityException e) {
-                e.printStackTrace();
-            } catch (Exception e) {
+            } catch (SecurityException | IllegalArgumentException e) {
+                // Loga o erro, mas evita crash
                 e.printStackTrace();
             }
         }
@@ -115,6 +118,7 @@ public class GNSSPlotActivity extends AppCompatActivity {
         }
         if (gnssView != null) {
             gnssView.newStatus(null);
+            gnssView.newLocation(null);
         }
     }
 

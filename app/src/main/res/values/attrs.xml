@@ -2,6 +2,9 @@
 <resources>
     <declare-styleable name="GNSSView">
         <attr name="zenithMarkerStyle" format="enum">
-            <enum name="dot" value="0"/>       <enum name="cross" value="1"/>     <enum name="circle" value="2"/>    </attr>
+            <enum name="circle" value="0" />
+            <enum name="cross" value="1" />
+            <enum name="star" value="2" />
+        </attr>
     </declare-styleable>
 </resources>
