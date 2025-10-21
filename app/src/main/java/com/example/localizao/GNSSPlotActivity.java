@@ -36,7 +36,6 @@ public class GNSSPlotActivity extends AppCompatActivity {
         locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
 
         // Referência para o controle customizado (GNSSView)
-        // Este componente é o responsável por desenhar a esfera celeste e os satélites.
         gnssView = findViewById(R.id.GNSSViewid);
 
         startGnssUpdate();
@@ -45,7 +44,7 @@ public class GNSSPlotActivity extends AppCompatActivity {
     public void startGnssUpdate() {
         if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
 
-            // Escutador de Localização: Repassa a última localização para o GNSSView
+            // Escutador de Localização: Repassa a última localização para o GNSSView (necessário para a precisão do Fix)
             locationListener = new LocationListener() {
                 @Override
                 public void onLocationChanged(@NonNull Location location) {
@@ -61,14 +60,14 @@ public class GNSSPlotActivity extends AppCompatActivity {
                 public void onProviderDisabled(@NonNull String provider) { }
             };
 
-            // Solicita atualizações de localização para obter o objeto Location (necessário para a precisão)
+            // Solicita atualizações de localização para obter o objeto Location
             locationManager.requestLocationUpdates(
                     LocationManager.GPS_PROVIDER,
                     1000, // 1 segundo
                     0, // 0 metros
                     locationListener);
 
-            // Escutador de Status GNSS: Repassa o status dos satélites para o GNSSView
+            // Escutador de Status GNSS: Repassa o status dos satélites
             gnssCallback = new GnssStatus.Callback() {
                 @Override
                 public void onSatelliteStatusChanged(@NonNull GnssStatus status) {
@@ -109,7 +108,6 @@ public class GNSSPlotActivity extends AppCompatActivity {
             try {
                 locationManager.unregisterGnssStatusCallback(gnssCallback);
             } catch (SecurityException | IllegalArgumentException e) {
-                // Loga o erro, mas evita crash
                 e.printStackTrace();
             }
         }
