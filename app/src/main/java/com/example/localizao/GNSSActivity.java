@@ -139,7 +139,7 @@ public class GNSSActivity extends AppCompatActivity {
     private void atualizaGNSSTextView(GnssStatus status) {
         TextView textViewGNSS = (TextView) findViewById(R.id.textViewGNSS);
         if (status == null) {
-            String s = "Dados de Localização não disponíveis";
+            String s = "Sistema de Satélite não disponível";
             textViewGNSS.setText(s);
             return;
         }
