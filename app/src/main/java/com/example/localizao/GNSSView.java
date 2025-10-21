@@ -262,7 +262,7 @@ public class GNSSView extends View implements View.OnClickListener {
             else if (accuracy < 20) { paint.setColor(Color.YELLOW); }
             else { paint.setColor(Color.RED); }
         } else {
-            paint.setColor(Color.DKGRAY);
+            paint.setColor(Color.WHITE);
         }
 
         // 2.2. Desenha o estilo do marcador (ZenithMarkerStyle)
@@ -274,25 +274,38 @@ public class GNSSView extends View implements View.OnClickListener {
                 canvas.drawCircle(cx, cy, 10, zenithPaint);
                 break;
             case ZENITH_CROSS:
-                zenithPaint.setStrokeWidth(8);
-                canvas.drawLine(cx - 10, cy, cx + 10, cy, zenithPaint);
-                canvas.drawLine(cx, cy - 10, cx, cy + 10, zenithPaint);
+                zenithPaint.setStrokeWidth(10);
+                canvas.drawLine(cx - 16, cy, cx + 16, cy, zenithPaint);
+                canvas.drawLine(cx, cy - 16, cx, cy + 16, zenithPaint);
                 break;
             case ZENITH_STAR:
+                // --- CÓDIGO CORRIGIDO PARA ESTRELA ---
                 zenithPaint.setStyle(Paint.Style.FILL);
                 Path star = new Path();
-                for (int i = 0; i < 5; i++) {
-                    double angle = Math.toRadians(i * 72 - 90);
-                    double inner = Math.toRadians(i * 72 + 36 - 90);
-                    float xOuter = (float) (cx + 12 * Math.cos(angle));
-                    float yOuter = (float) (cy + 12 * Math.sin(angle));
-                    float xInner = (float) (cx + 5 * Math.cos(inner));
-                    float yInner = (float) (cy + 5 * Math.sin(inner));
 
-                    if (i == 0) star.moveTo(xOuter, yOuter);
-                    star.lineTo(xInner, yInner);
-                    star.lineTo(xOuter, yOuter);
+                // Parâmetros para os raios
+                final float outerRadius = 16f;
+                final float innerRadius = 8f;
+                final int numPoints = 5;
+
+                // Ponto inicial: ponta superior (-90 graus)
+                float startAngle = (float) Math.toRadians(-90);
+
+                // Calcula os 10 pontos (5 externos, 5 internos)
+                for (int i = 0; i < numPoints * 2; i++) {
+                    float currentRadius = (i % 2 == 0) ? outerRadius : innerRadius;
+                    float angle = (float) Math.toRadians(i * 36) + startAngle;
+
+                    float x = (float) (cx + currentRadius * Math.cos(angle));
+                    float y = (float) (cy + currentRadius * Math.sin(angle));
+
+                    if (i == 0) {
+                        star.moveTo(x, y); // Começa no primeiro ponto externo
+                    } else {
+                        star.lineTo(x, y); // Liga sequencialmente
+                    }
                 }
+
                 star.close();
                 canvas.drawPath(star, zenithPaint);
                 break;

@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">localização</string>
+    <string name="app_name">AV_N</string>
     <string name="btn_location_txt">Location</string>
     <string name="btn_gnss_txt">GNSS</string>
     <string name="btn_stop_txt">Stop</string>

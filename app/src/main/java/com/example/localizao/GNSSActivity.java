@@ -118,7 +118,7 @@ public class GNSSActivity extends AppCompatActivity {
     }
 
     private void atualizaLocationTextView(Location location) {
-        TextView locationTextView = findViewById(R.id.textViewLocationManager);
+        TextView locationTextView = (TextView) findViewById(R.id.textViewLocationManager);
         if (location == null) {
             String s = "Dados de Localização não disponíveis";
             locationTextView.setText(s);
