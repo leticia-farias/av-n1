@@ -109,7 +109,7 @@ public class LocationActivity extends AppCompatActivity {
     }
 
     public void atualizaLocationTextView (Location location) {
-        TextView locationTextView = (TextView) findViewById(R.id.LocationTextView);
+        TextView locationTextView = findViewById(R.id.LocationTextView);
         String s = "Dados da Última Localização:\n";
         if (location != null) {
             s += "Latitude: (G/M/S)" + Location.convert(location.getLatitude(),Location.FORMAT_SECONDS) + "\n";
