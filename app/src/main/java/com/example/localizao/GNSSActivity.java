@@ -76,7 +76,7 @@ public class GNSSActivity extends AppCompatActivity {
             // Informa o provedor de localização, tempo e distância mínimos e o escutador
             locationManager.requestLocationUpdates(
                     LocationManager.GPS_PROVIDER, // provedor de localização
-                    1000, // intervalo mínimo (ms)
+                    5*1000, // intervalo mínimo (ms)
                     0, // distância mínima (m)
                     locationListener); // objeto que irá processar as localizações
 
